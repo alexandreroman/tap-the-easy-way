@@ -1,0 +1,84 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:yaml", "yaml")
+---
+#@ def values():
+shared:
+  ingress_domain: #@ data.values.tap.ingress.domain
+  image_registry:
+    project_path: #@ "{}/{}".format(data.values.tap.registry.hostname, data.values.tap.registry.repo)
+    username: #@ data.values.tap.registry.username
+    password: #@ data.values.tap.registry.password
+
+ceip_policy_disclosed: true
+profile: full
+
+excluded_packages:
+- learningcenter.tanzu.vmware.com
+- workshops.learningcenter.tanzu.vmware.com
+- image-policy-webhook.signing.apps.tanzu.vmware.com
+
+supply_chain: basic
+ootb_supply_chain_basic:
+  gitops:
+    ssh_secret: git-credentials
+
+contour:
+  envoy:
+    service:
+      type: LoadBalancer
+
+tap_gui:
+  service_type: ClusterIP
+  app_config:
+    customize:
+      custom_name: #@ data.values.tap.title
+    integrations:
+      github:
+      - host: github.com
+        token: #@ data.values.github.accessToken
+    catalog:
+      locations:
+      - type: url
+        target: #@ data.values.tap.catalog
+    backend:
+      database:
+        client: pg
+        connection:
+          host: #@ data.values.tap.db.hostname
+          port: 5432
+          user: #@ data.values.tap.db.username
+          password: #@ data.values.tap.db.password
+          ssl: {rejectUnauthorized: true}
+    auth:
+      environment: development
+      providers:
+        github:
+          development:
+            clientId: #@ data.values.github.oidc.clientId
+            clientSecret: #@ data.values.github.oidc.clientSecret
+
+metadata_store:
+  ns_for_export_app_cert: tap-dev
+  app_service_type: ClusterIP
+
+scanning:
+  metadataStore:
+    url: ""
+
+grype:
+  namespace: tap-dev
+  targetImagePullSecret: tap-registry
+#@ end
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tap-install-values
+  namespace: tap-install
+  annotations:
+    kapp.k14s.io/change-group: tap-gitops/tap-install
+    kapp.k14s.io/change-rule.create-order: upsert after upserting tap-gitops/tap-repo
+    kapp.k14s.io/change-rule.delete-order: delete before deleting tap-gitops/tap-repo
+type: Opaque
+stringData:
+  tap-values.yml: #@ yaml.encode(values())

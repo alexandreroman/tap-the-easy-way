@@ -1,0 +1,32 @@
+#@ load("@ytt:data", "data")
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tap-registry
+  namespace: tap-install
+  annotations:
+    kapp.k14s.io/change-group: tap-gitops/tap-rbac
+type: kubernetes.io/dockerconfigjson
+stringData:
+  #@yaml/text-templated-strings
+  .dockerconfigjson: |-
+    {
+      "auths": {
+        "(@= data.values.tap.registry.hostname @)": {
+          "username": "(@= data.values.tap.registry.username @)",
+          "password": "(@= data.values.tap.registry.password @)"
+        }
+      }
+    }
+---
+apiVersion: secretgen.carvel.dev/v1alpha1
+kind: SecretExport
+metadata:
+  name: tap-registry
+  namespace: tap-install
+  annotations:
+    kapp.k14s.io/change-group: tap-gitops/tap-rbac
+spec:
+  toNamespaces:
+  - '*'

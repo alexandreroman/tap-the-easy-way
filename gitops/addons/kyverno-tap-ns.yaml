@@ -1,0 +1,135 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: generate-tap-namespace-resources
+  annotations:
+    kapp.k14s.io/change-group: tap-gitops/kyverno-policies
+    kapp.k14s.io/change-rule.create-order: upsert after upserting tap-gitops/kyverno
+    kapp.k14s.io/change-rule.delete-order: delete before deleting tap-gitops/kyverno
+    policies.kyverno.io/title: Generate TAP namespace resources
+    policies.kyverno.io/category: TAP
+    kyverno.io/kyverno-version: 1.0.0
+    policies.kyverno.io/minversion: 1.6.0
+    kyverno.io/kubernetes-version: "1.23"
+    policies.kyverno.io/subject: Secret, Role, RoleBinding
+    policies.kyverno.io/description: >-
+      This policy is responsible for creating resources for TAP dev namespaces.
+      When annotating namespaces with annotation `apps.tanzu.vmware.com/namespace: "true"`,
+      this policy will take care of creating additional resources such Git credentials,
+      `ServiceAccount`, etc.
+spec:
+  rules:
+  - name: generate-tap-registry
+    match:
+      any:
+      - resources:
+          kinds:
+          - Namespace
+          selector:
+            matchLabels:
+              apps.tanzu.vmware.com/namespace: "true"
+    generate:
+      apiVersion: v1
+      kind: Secret
+      name: tap-registry
+      namespace: "{{request.object.metadata.name}}"
+      synchronize: true
+      data:
+        metadata:
+          name: tap-registry
+          namespace: "{{request.object.metadata.name}}"
+          annotations:
+            secretgen.carvel.dev/image-pull-secret: ""
+        type: kubernetes.io/dockerconfigjson
+        data:
+          .dockerconfigjson: e30K
+
+  - name: generate-tap-role
+    match:
+      any:
+      - resources:
+          kinds:
+          - Namespace
+          selector:
+            matchLabels:
+              apps.tanzu.vmware.com/namespace: "true"
+    generate:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: Role
+      name: default
+      namespace: "{{request.object.metadata.name}}"
+      synchronize: true
+      data:
+        metadata:
+          name: default
+          namespace: "{{request.object.metadata.name}}"
+        rules:
+        - apiGroups: [source.toolkit.fluxcd.io]
+          resources: [gitrepositories]
+          verbs: ['*']
+        - apiGroups: [source.apps.tanzu.vmware.com]
+          resources: [imagerepositories]
+          verbs: ['*']
+        - apiGroups: [carto.run]
+          resources: [deliverables, runnables]
+          verbs: ['*']
+        - apiGroups: [kpack.io]
+          resources: [images]
+          verbs: ['*']
+        - apiGroups: [conventions.apps.tanzu.vmware.com]
+          resources: [podintents]
+          verbs: ['*']
+        - apiGroups: [""]
+          resources: ['configmaps']
+          verbs: ['*']
+        - apiGroups: [""]
+          resources: ['pods']
+          verbs: ['list']
+        - apiGroups: [tekton.dev]
+          resources: [taskruns, pipelineruns]
+          verbs: ['*']
+        - apiGroups: [tekton.dev]
+          resources: [pipelines]
+          verbs: ['list']
+        - apiGroups: [kappctrl.k14s.io]
+          resources: [apps]
+          verbs: ['*']
+        - apiGroups: [serving.knative.dev]
+          resources: ['services']
+          verbs: ['*']
+        - apiGroups: [servicebinding.io]
+          resources: ['servicebindings']
+          verbs: ['*']
+        - apiGroups: [services.apps.tanzu.vmware.com]
+          resources: ['resourceclaims']
+          verbs: ['*']
+        - apiGroups: [scanning.apps.tanzu.vmware.com]
+          resources: ['imagescans', 'sourcescans']
+          verbs: ['*']
+
+  - name: generate-tap-role-binding
+    match:
+      any:
+      - resources:
+          kinds:
+          - Namespace
+          selector:
+            matchLabels:
+              apps.tanzu.vmware.com/namespace: "true"
+    generate:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      name: default
+      namespace: "{{request.object.metadata.name}}"
+      synchronize: true
+      data:
+        metadata:
+          name: default
+          namespace: "{{request.object.metadata.name}}"
+        roleRef:
+          apiGroup: rbac.authorization.k8s.io
+          kind: Role
+          name: default
+        subjects:
+          - kind: ServiceAccount
+            name: default

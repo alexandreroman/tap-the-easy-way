@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tap-install
+  annotations:
+    kapp.k14s.io/change-group: tap-gitops/tap-rbac
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tap-dev
+  annotations:
+    apps.tanzu.vmware.com/namespace: "true"
+    kapp.k14s.io/change-group: tap-gitops/tap-rbac

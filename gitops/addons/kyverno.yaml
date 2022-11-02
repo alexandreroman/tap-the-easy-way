@@ -1,0 +1,19 @@
+apiVersion: kappctrl.k14s.io/v1alpha1
+kind: App
+metadata:
+  name: kyverno
+  namespace: tap-gitops
+  annotations:
+    kapp.k14s.io/change-group: tap-gitops/kyverno
+spec:
+  serviceAccountName: tap-gitops-sa
+  syncPeriod: 5m
+  fetch:
+  - http:
+      url: https://github.com/kyverno/kyverno/releases/download/v1.8.1/install.yaml
+  template:
+  - ytt: {}
+  deploy:
+  - kapp:
+      rawOptions:
+      - --wait-timeout=5m
