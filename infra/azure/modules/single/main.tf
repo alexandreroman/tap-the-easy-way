@@ -25,11 +25,11 @@ resource "azurerm_kubernetes_cluster" "tap" {
   default_node_pool {
     name = "default"
     # Minimum node count.
-    min_count = 3
+    min_count = 4
     # Autoscaling is enabled by default, so new nodes will created / destroyed as needed.
     max_count = var.az_aks_cluster_nodes_max
-    # Create nodes with 4 vCPU and 16 Gb.
-    vm_size             = "Standard_D4_v3"
+    # Create nodes with 8 vCPU and 32 Gb.
+    vm_size             = "Standard_D8_v4"
     enable_auto_scaling = true
   }
 
